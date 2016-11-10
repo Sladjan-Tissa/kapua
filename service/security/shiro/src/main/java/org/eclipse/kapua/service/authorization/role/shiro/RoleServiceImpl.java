@@ -12,8 +12,6 @@
  *******************************************************************************/
 package org.eclipse.kapua.service.authorization.role.shiro;
 
-import java.util.Set;
-
 import org.eclipse.kapua.KapuaEntityNotFoundException;
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.commons.jpa.EntityManager;
@@ -29,6 +27,7 @@ import org.eclipse.kapua.service.authorization.permission.PermissionFactory;
 import org.eclipse.kapua.service.authorization.role.Role;
 import org.eclipse.kapua.service.authorization.role.RoleCreator;
 import org.eclipse.kapua.service.authorization.role.RoleListResult;
+import org.eclipse.kapua.service.authorization.role.RolePermission;
 import org.eclipse.kapua.service.authorization.role.RoleService;
 
 /**
@@ -62,9 +61,9 @@ public class RoleServiceImpl extends AbstractKapuaService implements RoleService
             em.beginTransaction();
             Role role = RoleDAO.create(em, roleCreator);
             em.commit();
-            return role;
+        return role;
         });
-    }
+        }
 
     @Override
     public void delete(KapuaId scopeId, KapuaId roleId) throws KapuaException {
@@ -137,12 +136,5 @@ public class RoleServiceImpl extends AbstractKapuaService implements RoleService
         return entityManagerSession.onEntityManagerResult(em -> {
             return RoleDAO.count(em, query);
         });
-    }
-
-    @Override
-    public RoleListResult merge(Set<RoleCreator> newPermissions)
-            throws KapuaException {
-        // TODO Auto-generated method stub
-        return null;
     }
 }
