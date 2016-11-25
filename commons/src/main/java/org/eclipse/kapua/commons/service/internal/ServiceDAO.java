@@ -57,14 +57,18 @@ import org.eclipse.kapua.model.query.predicate.KapuaPredicate;
  */
 public class ServiceDAO {
 
-    private final static String SQL_ERROR_CODE_CONSTRAINT_VIOLATION = "23505";
+    private static final String SQL_ERROR_CODE_CONSTRAINT_VIOLATION = "23505";
+
+    protected ServiceDAO() {
+    }
 
     /**
      * Create entity utility method.<br>
      * This method checks for the constraint violation and, in this case, it throws a specific exception ({@link KapuaEntityExistsException}).
      * 
      * @param em
-     * @param entity to be created
+     * @param entity
+     *            to be created
      * @return
      */
     public static <E extends KapuaEntity> E create(EntityManager em, E entity) {
@@ -73,19 +77,17 @@ public class ServiceDAO {
         try {
             em.persist(entity);
             em.flush();
-        }
-        catch (EntityExistsException e) {
+            em.refresh(entity);
+        } catch (EntityExistsException e) {
             throw new KapuaEntityExistsException(e, entity.getId());
-        }
-        catch (PersistenceException e) {
+        } catch (PersistenceException e) {
             if (isInsertConstraintViolation(e)) {
                 KapuaEntity entityFound = em.find(entity.getClass(), entity.getId());
                 if (entityFound == null) {
                     throw e;
                 }
                 throw new KapuaEntityExistsException(e, entity.getId());
-            }
-            else {
+            } else {
                 throw e;
             }
         }
@@ -105,14 +107,12 @@ public class ServiceDAO {
         SQLException innerExc = (SQLException) cause;
         if (SQL_ERROR_CODE_CONSTRAINT_VIOLATION.equals(innerExc.getSQLState())) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
 
-    public static <E extends KapuaEntity> E store(EntityManager em, E entity)
-    {
+    public static <E extends KapuaEntity> E store(EntityManager em, E entity) {
         //
         // Creating entity
 
@@ -145,7 +145,7 @@ public class ServiceDAO {
 
             em.merge(entity);
             em.flush();
-            // em.refresh(entityToUpdate);
+            em.refresh(entityToUpdate);
         }
 
         return entityToUpdate;

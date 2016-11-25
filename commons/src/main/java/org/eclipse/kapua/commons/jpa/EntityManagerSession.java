@@ -9,8 +9,6 @@
  *******************************************************************************/
 package org.eclipse.kapua.commons.jpa;
 
-import javax.persistence.PersistenceException;
-
 import org.eclipse.kapua.KapuaEntityExistsException;
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
@@ -30,15 +28,14 @@ public class EntityManagerSession {
     private static final Logger logger = LoggerFactory.getLogger(EntityManagerSession.class);
 
     private final EntityManagerFactory entityManagerFactory;
-    private final static int           MAX_INSERT_ALLOWED_RETRY = SystemSetting.getInstance().getInt(SystemSettingKey.KAPUA_INSERT_MAX_RETRY);
+    private static final int MAX_INSERT_ALLOWED_RETRY = SystemSetting.getInstance().getInt(SystemSettingKey.KAPUA_INSERT_MAX_RETRY);
 
     /**
      * Constructor
      * 
      * @param entityManagerFactory
      */
-    public EntityManagerSession(EntityManagerFactory entityManagerFactory)
-    {
+    public EntityManagerSession(EntityManagerFactory entityManagerFactory) {
         this.entityManagerFactory = entityManagerFactory;
     }
 
@@ -53,7 +50,10 @@ public class EntityManagerSession {
         try {
             manager = entityManagerFactory.createEntityManager();
             entityManagerActionCallback.actionOn(manager);
-        } catch (KapuaException e) {
+        } catch (Exception e) {
+            if (manager != null) {
+                manager.rollback();
+            }
             throw KapuaExceptionUtils.convertPersistenceException(e);
         } finally {
             if (manager != null) {
@@ -74,7 +74,10 @@ public class EntityManagerSession {
         try {
             manager = entityManagerFactory.createEntityManager();
             return entityManagerResultCallback.onEntityManager(manager);
-        } catch (KapuaException e) {
+        } catch (Exception e) {
+            if (manager != null) {
+                manager.rollback();
+            }
             throw KapuaExceptionUtils.convertPersistenceException(e);
         } finally {
             if (manager != null) {
@@ -92,8 +95,7 @@ public class EntityManagerSession {
      * @return
      * @throws KapuaException
      */
-    public <T> T onEntityManagerInsert(EntityManagerInsertCallback<T> entityManagerInsertCallback) throws KapuaException
-    {
+    public <T> T onEntityManagerInsert(EntityManagerInsertCallback<T> entityManagerInsertCallback) throws KapuaException {
         boolean succeeded = false;
         int retry = 0;
         EntityManager manager = entityManagerFactory.createEntityManager();
@@ -103,22 +105,21 @@ public class EntityManagerSession {
                 try {
                     instance = entityManagerInsertCallback.onEntityInsert(manager);
                     succeeded = true;
-                }
-                catch (KapuaEntityExistsException e) {
+                } catch (KapuaEntityExistsException e) {
                     if (++retry < MAX_INSERT_ALLOWED_RETRY) {
                         logger.warn("Entity already exists. Cannot insert the entity, try again!");
-                    }
-                    else {
+                    } else {
+                        manager.rollback();
                         throw KapuaExceptionUtils.convertPersistenceException(e);
                     }
-                }
-                catch (PersistenceException e) {
+                } catch (Exception e) {
+                    if (manager != null) {
+                        manager.rollback();
+                    }
                     throw KapuaExceptionUtils.convertPersistenceException(e);
                 }
-            }
-            while (!succeeded);
-        }
-        finally {
+            } while (!succeeded);
+        } finally {
             manager.close();
         }
         return instance;
