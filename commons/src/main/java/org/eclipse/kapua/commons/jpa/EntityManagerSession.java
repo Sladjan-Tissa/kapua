@@ -43,7 +43,11 @@ public class EntityManagerSession {
     }
 
     /**
-     * Execute the action on a new entity manager
+     * Execute the action on a new entity manager.<br>
+     * <br>
+     * WARNING!<br>
+     * The transactionality (if needed by the code) must be managed internally to the entityManagerActionCallback.<br>
+     * This method performs only a rollback (if the transaction is active and an error occurred)!<br>
      * 
      * @param entityManagerActionCallback
      * @throws KapuaException
@@ -54,6 +58,9 @@ public class EntityManagerSession {
             manager = entityManagerFactory.createEntityManager();
             entityManagerActionCallback.actionOn(manager);
         } catch (KapuaException e) {
+            if (manager!=null) {
+                manager.rollback();
+            }
             throw KapuaExceptionUtils.convertPersistenceException(e);
         } finally {
             if (manager != null) {
@@ -63,7 +70,11 @@ public class EntityManagerSession {
     }
 
     /**
-     * Return the execution result invoked on a new entity manager
+     * Return the execution result invoked on a new entity manager.<br>
+     * <br>
+     * WARNING!<br>
+     * The transactionality (if needed by the code) must be managed internally to the entityManagerResultCallback.<br>
+     * This method performs only a rollback (if the transaction is active and an error occurred)!<br>
      * 
      * @param entityManagerResultCallback
      * @return
@@ -75,6 +86,9 @@ public class EntityManagerSession {
             manager = entityManagerFactory.createEntityManager();
             return entityManagerResultCallback.onEntityManager(manager);
         } catch (KapuaException e) {
+            if (manager != null) {
+                manager.rollback();
+            }
             throw KapuaExceptionUtils.convertPersistenceException(e);
         } finally {
             if (manager != null) {
@@ -86,7 +100,11 @@ public class EntityManagerSession {
     /**
      * Return the insert execution result invoked on a new entity manager.<br>
      * This method differs from the onEntityManagerResult because it reiterates the execution if it fails due to {@link KapuaEntityExistsException} for a maximum retry.<br>
-     * The maximum allowed retry is set by {@link SystemSettingKey#KAPUA_INSERT_MAX_RETRY}.
+     * The maximum allowed retry is set by {@link SystemSettingKey#KAPUA_INSERT_MAX_RETRY}.<br>
+     * <br>
+     * WARNING!<br>
+     * The transactionality (if needed by the code) must be managed internally to the entityManagerInsertCallback.<br>
+     * This method performs only a rollback (if the transaction is active and an error occurred)!<br>
      * 
      * @param entityManagerInsertCallback
      * @return
@@ -105,6 +123,9 @@ public class EntityManagerSession {
                     succeeded = true;
                 }
                 catch (KapuaEntityExistsException e) {
+                    if (manager != null) {
+                        manager.rollback();
+                    }
                     if (++retry < MAX_INSERT_ALLOWED_RETRY) {
                         logger.warn("Entity already exists. Cannot insert the entity, try again!");
                     }
@@ -113,13 +134,18 @@ public class EntityManagerSession {
                     }
                 }
                 catch (PersistenceException e) {
+                    if (manager != null) {
+                        manager.rollback();
+                    }
                     throw KapuaExceptionUtils.convertPersistenceException(e);
                 }
             }
             while (!succeeded);
         }
         finally {
-            manager.close();
+            if (manager != null) {
+                manager.close();
+            }
         }
         return instance;
     }
